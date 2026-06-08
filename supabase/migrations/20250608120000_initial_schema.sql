@@ -103,7 +103,7 @@ as $$
 begin
   new.updated_at = now();
   return new;
-end;
+end
 $$;
 
 create trigger profiles_updated_at
