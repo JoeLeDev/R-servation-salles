@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Réservation Cité
 
-## Getting Started
+Système de demande de réservation de salles pour la Cité.
 
-First, run the development server:
+## Fonctionnalités
+
+- Catalogue de **22 salles** (auditoriums, polyvalentes, salons, studios, espaces enfants)
+- **Demande de réservation** avec validation par le service concerné
+- Authentification **email (magic link)** et **Google** via Supabase
+- Espace **Mes demandes** pour suivre le statut
+- Page **Validation** pour les responsables de service
+
+## Démarrage rapide
+
+### 1. Installer les dépendances
+
+```bash
+npm install
+```
+
+### 2. Configurer Supabase
+
+1. Créez un projet sur [supabase.com](https://supabase.com)
+2. Copiez `.env.local.example` vers `.env.local` et renseignez vos clés
+3. Dans le **SQL Editor** de Supabase, exécutez le fichier :
+   `supabase/migrations/20250608120000_initial_schema.sql`
+
+### 3. Configurer l'authentification
+
+Dans **Authentication → Providers** :
+
+- **Email** : activer (magic link)
+- **Google** : activer et renseigner Client ID / Secret
+
+Dans **Authentication → URL Configuration** :
+
+- Site URL : `http://localhost:3000`
+- Redirect URLs : `http://localhost:3000/auth/callback`
+
+### 4. Lancer le projet
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Rôles utilisateurs
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Rôle | Droits |
+|------|--------|
+| `employee` | Faire des demandes, voir ses demandes |
+| `service_manager` | Valider les demandes de son service |
+| `admin` | Valider toutes les demandes |
 
-## Learn More
+Pour promouvoir un utilisateur en responsable de service :
 
-To learn more about Next.js, take a look at the following resources:
+```sql
+update public.profiles
+set role = 'service_manager', service_id = (
+  select id from public.services where name = 'Événementiel'
+)
+where email = 'responsable@exemple.com';
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Services et salles
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Service | Salles |
+|---------|--------|
+| Événementiel | Auditorium, Diamant, Onyx, Diamant & Onyx, Sardoine, Saphir, Topaze, Or |
+| Salons & Réunions | Emeraude, Escarboucle, Sardonyx, Sardius |
+| Production audiovisuelle | Émission TV, Plateau TV fond vert, Débat TV table ronde, Enregistrement audio |
+| Espace enfants | Améthyste, Crysolithe, Jaspe, Hyacinthe, Agathe, Béril |
 
-## Deploy on Vercel
+## À venir
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Plans interactifs des salles (photos fournies par le client)
+- Règles métier configurables (durées, délais)
+- Intégration GTB (éclairage, chauffage)
+- Notifications email automatiques
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Stack
+
+- [Next.js 16](https://nextjs.org) (App Router)
+- [Supabase](https://supabase.com) (Auth + PostgreSQL)
+- [shadcn/ui](https://ui.shadcn.com) + Tailwind CSS
+- PWA (Serwist) — installable sur mobile et bureau
+
+## PWA (Progressive Web App)
+
+L'application est installable comme une app native :
+
+- **Manifest** : `/manifest.webmanifest`
+- **Service worker** : cache des pages + page hors ligne (`/~offline`)
+- **Icônes** : générées automatiquement (`RC` sur fond bleu)
+
+### Installer l'app
+
+- **iPhone/iPad** : Safari → Partager → « Sur l'écran d'accueil »
+- **Android** : Chrome → menu → « Installer l'application »
+- **Desktop** : Chrome/Edge → icône d'installation dans la barre d'adresse
+
+> En développement (`npm run dev`), le service worker est désactivé. Testez l'installation avec `npm run build && npm start`.
+# R-servation-salles
