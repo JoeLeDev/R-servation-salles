@@ -6,10 +6,14 @@ const revision =
   spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).stdout?.trim() ||
   crypto.randomUUID();
 
+// PWA désactivée par défaut : le service worker peut bloquer /connexion en prod.
+// Pour réactiver : NEXT_PUBLIC_ENABLE_PWA=true sur Vercel + redéployer.
 const withSerwist = withSerwistInit({
   swSrc: "src/sw.ts",
   swDest: "public/sw.js",
-  disable: process.env.NODE_ENV === "development",
+  disable:
+    process.env.NEXT_PUBLIC_ENABLE_PWA !== "true" ||
+    process.env.NODE_ENV === "development",
   additionalPrecacheEntries: [{ url: "/~offline", revision }],
 });
 

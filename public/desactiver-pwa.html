@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Désactiver le cache PWA</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 32rem;
+        margin: 4rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+      }
+      button {
+        margin-top: 1rem;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      #status {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        background: #f0f0f0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Nettoyer le cache PWA</h1>
+    <p>
+      Si la page de connexion ne s’affiche plus, cliquez ci-dessous pour
+      désinstaller l’ancien service worker.
+    </p>
+    <button type="button" id="btn">Désinstaller le service worker</button>
+    <p id="status"></p>
+    <script>
+      document.getElementById("btn").onclick = async () => {
+        const status = document.getElementById("status");
+        if (!("serviceWorker" in navigator)) {
+          status.textContent = "Aucun service worker sur ce navigateur.";
+          return;
+        }
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+        if (caches) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        status.textContent =
+          regs.length > 0
+            ? "Terminé ! Rechargez le site (Ctrl+Shift+R)."
+            : "Aucun service worker trouvé. Videz le cache du site dans DevTools.";
+      };
+    </script>
+  </body>
+</html>

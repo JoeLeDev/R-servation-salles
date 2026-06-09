@@ -20,8 +20,14 @@ function mapAuthError(message: string): string {
     return "URL de redirection non autorisée. Ajoutez votre domaine Vercel dans Supabase → Authentication → URL Configuration.";
   }
 
-  if (lower.includes("rate limit") || lower.includes("too many")) {
-    return "Trop de tentatives. Réessayez dans quelques minutes.";
+  if (
+    lower.includes("rate limit") ||
+    lower.includes("too many") ||
+    lower.includes("429") ||
+    lower.includes("over_email_send_rate_limit") ||
+    lower.includes("email rate limit")
+  ) {
+    return "Trop de demandes de connexion envoyées. Attendez environ 1 heure avant de réessayer (limite Supabase).";
   }
 
   if (lower.includes("invalid") && lower.includes("email")) {
