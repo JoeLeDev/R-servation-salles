@@ -34,10 +34,31 @@ Dans **Authentication → Providers** :
 
 Dans **Authentication → URL Configuration** :
 
-- Site URL : `http://localhost:3000`
-- Redirect URLs : `http://localhost:3000/auth/callback`
+| Champ | Valeur |
+|-------|--------|
+| Site URL | `https://votre-app.vercel.app` |
+| Redirect URLs | `http://localhost:3000/auth/callback` |
+| | `http://localhost:3001/auth/callback` |
+| | `https://votre-app.vercel.app/auth/callback` |
+| | `https://votre-app.vercel.app/**` |
 
-### 4. Lancer le projet
+### 4. Déployer sur Vercel
+
+Le fichier `.env` local **n'est pas envoyé sur Vercel** (gitignore).
+
+Dans **Vercel → Project → Settings → Environment Variables**, ajoutez pour **Production** :
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://jrednmiwomkyabbhkzat.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+NEXT_PUBLIC_SITE_URL=https://votre-app.vercel.app
+```
+
+Puis **redéployez** (Deployments → Redeploy).
+
+> `NEXT_PUBLIC_SITE_URL` doit être l'URL exacte de production (avec `https://`), pas `localhost`.
+
+### 5. Lancer le projet en local
 
 ```bash
 npm run dev
@@ -101,4 +122,13 @@ L'application est installable comme une app native :
 - **Desktop** : Chrome/Edge → icône d'installation dans la barre d'adresse
 
 > En développement (`npm run dev`), le service worker est désactivé. Testez l'installation avec `npm run build && npm start`.
+
+### Dépannage PWA + auth
+
+Si la page `/connexion` plante avec `no-response` ou `429` dans la console :
+
+1. **Vider le cache du site** : DevTools → Application → Storage → Clear site data
+2. **Désinscrire le service worker** : Application → Service Workers → Unregister
+3. Attendre **15–60 min** si erreur `429` (limite Supabase sur les emails de connexion)
+4. Redéployer après mise à jour du code
 # R-servation-salles

@@ -2,17 +2,57 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { getAuthCallbackUrl } from "@/lib/site-url";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
-export function LoginForm() {
-  const supabase = createClient();
+type LoginFormProps = {
+  redirectTo?: string;
+};
+
+function mapAuthError(message: string): string {
+  const lower = message.toLowerCase();
+
+  if (lower.includes("redirect") || lower.includes("url")) {
+    return "URL de redirection non autorisée. Ajoutez votre domaine Vercel dans Supabase → Authentication → URL Configuration.";
+  }
+
+  if (lower.includes("rate limit") || lower.includes("too many")) {
+    return "Trop de tentatives. Réessayez dans quelques minutes.";
+  }
+
+  if (lower.includes("invalid") && lower.includes("email")) {
+    return "Adresse email invalide.";
+  }
+
+  if (lower.includes("signup") && lower.includes("disabled")) {
+    return "Les inscriptions sont désactivées. Contactez l'administrateur.";
+  }
+
+  return message;
+}
+
+export function LoginForm({ redirectTo = "/salles" }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  if (!isSupabaseConfigured()) {
+    return (
+      <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        Supabase n&apos;est pas configuré sur ce déploiement. Ajoutez{" "}
+        <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
+        <code className="text-xs">NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code>{" "}
+        dans les variables d&apos;environnement Vercel, puis redéployez.
+      </p>
+    );
+  }
+
+  const supabase = createClient();
 
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault();
@@ -20,21 +60,25 @@ export function LoginForm() {
     setError(null);
     setMessage(null);
 
+    const redirectUrl = getAuthCallbackUrl(redirectTo);
+
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: redirectUrl,
       },
     });
 
     setLoading(false);
 
     if (signInError) {
-      setError("Impossible d'envoyer le lien de connexion.");
+      setError(mapAuthError(signInError.message));
       return;
     }
 
-    setMessage("Un lien de connexion a été envoyé à votre adresse email.");
+    setMessage(
+      "Un lien de connexion a été envoyé à votre adresse email. Vérifiez aussi vos spams."
+    );
   }
 
   async function handleGoogleLogin() {
@@ -44,13 +88,13 @@ export function LoginForm() {
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: getAuthCallbackUrl(redirectTo),
       },
     });
 
     if (signInError) {
       setLoading(false);
-      setError("Connexion Google impossible. Vérifiez la configuration Supabase.");
+      setError(mapAuthError(signInError.message));
     }
   }
 
