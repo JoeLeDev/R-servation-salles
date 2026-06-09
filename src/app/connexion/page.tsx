@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
+import { isTestLoginEnabled } from "@/lib/test-login";
 import {
   Card,
   CardContent,
@@ -40,6 +41,17 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
           )}
           <LoginForm redirectTo={redirectTo} />
           <p className="mt-6 text-center text-sm text-muted-foreground">
+            {isTestLoginEnabled() && (
+              <>
+                <Link
+                  href={`/connexion-test?redirect=${encodeURIComponent(redirectTo)}`}
+                  className="underline underline-offset-4 hover:text-foreground"
+                >
+                  Connexion test (email + mot de passe)
+                </Link>
+                {" · "}
+              </>
+            )}
             <Link
               href="/salles"
               className="underline underline-offset-4 hover:text-foreground"
