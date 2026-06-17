@@ -12,18 +12,25 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data";
+import type { UserRole } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
 
-const navItems = [
+const navItems: Array<{
+  href: string;
+  label: string;
+  icon: typeof LayoutGrid;
+  auth?: boolean;
+  roles?: readonly UserRole[];
+}> = [
   { href: "/salles", label: "Salles", icon: LayoutGrid },
   { href: "/calendrier", label: "Calendrier", icon: Calendar },
   { href: "/plan", label: "Plan", icon: Map },
   { href: "/tableau-de-bord", label: "Tableau de bord", icon: LayoutDashboard, auth: true },
   { href: "/mes-demandes", label: "Mes demandes", icon: ClipboardList, auth: true },
-  { href: "/validation", label: "Validation", icon: ShieldCheck, roles: ["service_manager", "admin"] as const },
-  { href: "/admin", label: "Admin", icon: Settings, roles: ["admin"] as const },
+  { href: "/validation", label: "Validation", icon: ShieldCheck, roles: ["service_manager", "admin"] },
+  { href: "/admin", label: "Admin", icon: Settings, roles: ["admin"] },
 ];
 
 export async function Header() {
@@ -42,10 +49,7 @@ export async function Header() {
         <nav className="hidden items-center gap-0.5 lg:flex">
           {navItems.map((item) => {
             if (item.auth && !user) return null;
-            if (
-              item.roles &&
-              (!profile || !item.roles.includes(profile.role as (typeof item.roles)[number]))
-            ) {
+            if (item.roles && (!profile || !item.roles.includes(profile.role))) {
               return null;
             }
             const Icon = item.icon;
