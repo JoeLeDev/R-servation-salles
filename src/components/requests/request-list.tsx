@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import type { ReservationRequest } from "@/types/database";
@@ -50,7 +51,11 @@ export function RequestList({ requests, showRequester = false }: RequestListProp
             <div>
               <CardTitle>{request.title}</CardTitle>
               <CardDescription className="mt-1">
-                {request.rooms?.name} · {formatDateRange(request.start_at, request.end_at)}
+                <Link href={`/mes-demandes/${request.id}`} className="hover:underline">
+                  {request.rooms?.name}
+                </Link>
+                {" · "}
+                {formatDateRange(request.start_at, request.end_at)}
               </CardDescription>
               {showRequester && request.profiles && (
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -71,14 +76,19 @@ export function RequestList({ requests, showRequester = false }: RequestListProp
               </p>
             )}
             {!showRequester && request.status === "pending" && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={() => handleCancel(request.id)}
-              >
-                Annuler la demande
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/mes-demandes/${request.id}`}>Détails</Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => handleCancel(request.id)}
+                >
+                  Annuler
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>

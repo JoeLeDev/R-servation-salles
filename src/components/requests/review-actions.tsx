@@ -9,9 +9,15 @@ import { Label } from "@/components/ui/label";
 
 type ReviewActionsProps = {
   requestId: string;
+  approvalStep?: number;
+  requiredSteps?: number;
 };
 
-export function ReviewActions({ requestId }: ReviewActionsProps) {
+export function ReviewActions({
+  requestId,
+  approvalStep = 1,
+  requiredSteps = 1,
+}: ReviewActionsProps) {
   const [comment, setComment] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -22,7 +28,11 @@ export function ReviewActions({ requestId }: ReviewActionsProps) {
         toast.error(result.error);
       } else {
         toast.success(
-          status === "approved" ? "Demande approuvée." : "Demande refusée."
+          status === "approved"
+            ? approvalStep < requiredSteps
+              ? "Étape 1 validée — en attente validation direction."
+              : "Demande approuvée."
+            : "Demande refusée."
         );
         setComment("");
       }
@@ -47,7 +57,7 @@ export function ReviewActions({ requestId }: ReviewActionsProps) {
           disabled={pending}
           onClick={() => handleReview("approved")}
         >
-          Approuver
+          {approvalStep < requiredSteps ? "Valider (étape 1)" : "Approuver"}
         </Button>
         <Button
           size="sm"

@@ -87,7 +87,11 @@ export default async function ValidationPage() {
                     Participants : {request.attendees}
                   </p>
                 )}
-                <ReviewActions requestId={request.id} />
+                <ReviewActions
+                  requestId={request.id}
+                  approvalStep={request.approval_step}
+                  requiredSteps={request.required_approval_steps}
+                />
               </CardContent>
             </Card>
           ))}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, ClipboardCheck, Users } from "lucide-react";
+import { ArrowRight, Building2, Calendar, ClipboardCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,20 +13,17 @@ const steps = [
   {
     icon: Building2,
     title: "Choisissez une salle",
-    description:
-      "Parcourez les 22 espaces disponibles : auditoriums, studios, salons et espaces enfants.",
+    description: "Catalogue, plan interactif ou calendrier des disponibilités.",
   },
   {
     icon: ClipboardCheck,
     title: "Soumettez votre demande",
-    description:
-      "Indiquez la date, l'horaire et les détails de votre événement.",
+    description: "Date, récurrence, pièces jointes et commentaires.",
   },
   {
     icon: Users,
     title: "Validation par le service",
-    description:
-      "Le service concerné approuve ou refuse votre demande avec un commentaire.",
+    description: "Le service concerné approuve ou refuse avec un commentaire.",
   },
 ];
 
@@ -41,14 +38,20 @@ export default function HomePage() {
           Réservez vos espaces en quelques clics
         </h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          Tout le monde peut faire une demande. Chaque réservation est validée
-          par le service responsable de la salle concernée.
+          22 salles, calendrier en temps réel, validation par service et
+          tableau de bord personnel.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button asChild size="lg">
             <Link href="/salles">
               Voir les salles
               <ArrowRight className="ml-2 size-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <Link href="/calendrier">
+              <Calendar className="mr-2 size-4" />
+              Calendrier
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg">

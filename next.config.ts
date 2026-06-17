@@ -1,21 +1,8 @@
 import { spawnSync } from "node:child_process";
-import withSerwistInit from "@serwist/next";
+import { createRequire } from "node:module";
 import type { NextConfig } from "next";
 
-const revision =
-  spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).stdout?.trim() ||
-  crypto.randomUUID();
-
-// PWA désactivée par défaut : le service worker peut bloquer /connexion en prod.
-// Pour réactiver : NEXT_PUBLIC_ENABLE_PWA=true sur Vercel + redéployer.
-const withSerwist = withSerwistInit({
-  swSrc: "src/sw.ts",
-  swDest: "public/sw.js",
-  disable:
-    process.env.NEXT_PUBLIC_ENABLE_PWA !== "true" ||
-    process.env.NODE_ENV === "development",
-  additionalPrecacheEntries: [{ url: "/~offline", revision }],
-});
+const require = createRequire(import.meta.url);
 
 const nextConfig: NextConfig = {
   turbopack: {
@@ -23,4 +10,22 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+let config: NextConfig = nextConfig;
+
+if (process.env.NEXT_PUBLIC_ENABLE_PWA === "true") {
+  const withSerwistInit = require("@serwist/next").default as typeof import("@serwist/next").default;
+  const revision =
+    spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).stdout?.trim() ||
+    crypto.randomUUID();
+
+  const withSerwist = withSerwistInit({
+    swSrc: "src/sw.ts",
+    swDest: "public/sw.js",
+    disable: process.env.NODE_ENV === "development",
+    additionalPrecacheEntries: [{ url: "/~offline", revision }],
+  });
+
+  config = withSerwist(nextConfig);
+}
+
+export default config;
