@@ -1,14 +1,14 @@
+"use client";
+
 import Image from "next/image";
 import type { RoomExtendedDetails } from "@/lib/room-details";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const layoutLabels: { key: keyof NonNullable<RoomExtendedDetails["layoutCapacities"]>; label: string }[] = [
+const layoutLabels: {
+  key: keyof NonNullable<RoomExtendedDetails["layoutCapacities"]>;
+  label: string;
+}[] = [
   { key: "u", label: "En U" },
   { key: "meeting", label: "Réunion" },
   { key: "conference", label: "Conférence" },
@@ -21,104 +21,98 @@ type RoomDetailsPanelProps = {
   details: RoomExtendedDetails;
 };
 
-export function RoomDetailsPanel({ details }: RoomDetailsPanelProps) {
+function FeatureTable({ rows }: { rows: { label: string; value: string }[] }) {
   return (
-    <div className="space-y-6">
-      {details.summary && (
-        <p className="text-sm leading-relaxed text-muted-foreground">{details.summary}</p>
-      )}
+    <table className="w-full text-sm">
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.label} className="border-t first:border-t-0">
+            <td className="p-2.5 font-medium">{row.label}</td>
+            <td className="p-2.5 text-muted-foreground">{row.value}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
-      {details.images && details.images.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Galerie</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {details.images.map((image) => (
-                <div
-                  key={image.src}
-                  className="relative aspect-[4/3] overflow-hidden rounded-lg border bg-muted"
-                >
-                  <Image
-                    src={image.src}
-                    alt={image.alt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, 280px"
-                  />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+export function RoomDetailsPanel({ details }: RoomDetailsPanelProps) {
+  const hasGallery = (details.images?.length ?? 0) > 0;
+  const hasFeatures = (details.features?.length ?? 0) > 0;
+  const hasCapacities = !!details.layoutCapacities;
+  const hasPricing = (details.pricing?.length ?? 0) > 0;
 
-      {details.features && details.features.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Équipements & services</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <tbody>
-                {details.features.map((feature) => (
-                  <tr key={feature.label} className="border-t first:border-t-0">
-                    <td className="p-3 font-medium">{feature.label}</td>
-                    <td className="p-3 text-muted-foreground">{feature.value}</td>
-                  </tr>
+  const defaultTab = hasGallery
+    ? "galerie"
+    : hasFeatures
+      ? "equipements"
+      : hasCapacities
+        ? "capacites"
+        : "tarifs";
+
+  return (
+    <Card>
+      <CardContent className="pt-4">
+        <Tabs defaultValue={defaultTab}>
+          <TabsList className="mb-3 w-full flex-wrap h-auto">
+            {hasGallery && <TabsTrigger value="galerie">Galerie</TabsTrigger>}
+            {hasFeatures && (
+              <TabsTrigger value="equipements">Équipements</TabsTrigger>
+            )}
+            {hasCapacities && (
+              <TabsTrigger value="capacites">Capacités</TabsTrigger>
+            )}
+            {hasPricing && <TabsTrigger value="tarifs">Tarifs</TabsTrigger>}
+          </TabsList>
+
+          {hasGallery && (
+            <TabsContent value="galerie">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {details.images!.map((image) => (
+                  <div
+                    key={image.src}
+                    className="relative aspect-[4/3] overflow-hidden rounded-lg border bg-muted"
+                  >
+                    <Image
+                      src={image.src}
+                      alt={image.alt}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 100vw, 280px"
+                    />
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
+              </div>
+            </TabsContent>
+          )}
 
-      {details.layoutCapacities && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Capacités par configuration</CardTitle>
-            <CardDescription>Nombre de convives selon l&apos;agencement</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <tbody>
-                {layoutLabels.map(({ key, label }) => {
+          {hasFeatures && (
+            <TabsContent value="equipements">
+              <FeatureTable rows={details.features!} />
+            </TabsContent>
+          )}
+
+          {hasCapacities && (
+            <TabsContent value="capacites">
+              <FeatureTable
+                rows={layoutLabels.map(({ key, label }) => {
                   const value = details.layoutCapacities?.[key];
-                  return (
-                    <tr key={key} className="border-t first:border-t-0">
-                      <td className="p-3 font-medium">{label}</td>
-                      <td className="p-3 text-muted-foreground">
-                        {value != null ? `${value} personnes` : "—"}
-                      </td>
-                    </tr>
-                  );
+                  return {
+                    label,
+                    value: value != null ? `${value} personnes` : "—",
+                  };
                 })}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
+              />
+            </TabsContent>
+          )}
 
-      {details.pricing && details.pricing.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Tarifs</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <tbody>
-                {details.pricing.map((item) => (
-                  <tr key={item.label} className="border-t first:border-t-0">
-                    <td className="p-3 font-medium">{item.label}</td>
-                    <td className="p-3 text-muted-foreground">{item.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          {hasPricing && (
+            <TabsContent value="tarifs">
+              <FeatureTable rows={details.pricing!} />
+            </TabsContent>
+          )}
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }

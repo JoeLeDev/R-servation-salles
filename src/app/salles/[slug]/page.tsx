@@ -56,51 +56,55 @@ export default async function RoomPage({ params }: RoomPageProps) {
   const extendedDetails = getRoomExtendedDetails(slug);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <Button variant="ghost" asChild className="mb-6 -ml-2">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <Button variant="ghost" asChild className="mb-4 -ml-2">
         <Link href="/salles">
           <ArrowLeft className="mr-2 size-4" />
           Retour aux salles
         </Link>
       </Button>
 
-      <div className="grid gap-8 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-2">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">{room.name}</h1>
-              <Badge variant="secondary">{formatRoomType(room.room_type)}</Badge>
-            </div>
-            <p className="mt-2 text-muted-foreground">
-              Service : {room.services?.name}
-            </p>
-            {(extendedDetails?.summary || room.description) && (
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                {extendedDetails?.summary ?? room.description}
-              </p>
-            )}
+      <header className="mb-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            {room.name}
+          </h1>
+          <Badge variant="secondary">{formatRoomType(room.room_type)}</Badge>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Service : {room.services?.name}
+        </p>
+        {(extendedDetails?.summary || room.description) && (
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+            {extendedDetails?.summary ?? room.description}
+          </p>
+        )}
+
+        <dl className="mt-4 flex flex-wrap gap-2">
+          <div className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs">
+            <Ruler className="size-3.5 text-muted-foreground" />
+            <span>{formatSurface(room.surface_sqm)}</span>
           </div>
+          <div className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs">
+            <Users className="size-3.5 text-muted-foreground" />
+            <span>{formatCapacity(room.capacity)}</span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs">
+            <Building2 className="size-3.5 text-muted-foreground" />
+            <span>{formatPrice(room.pricing_type, room.base_price)}</span>
+          </div>
+        </dl>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Caractéristiques</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="flex items-center gap-3">
-                <Ruler className="size-4 text-muted-foreground" />
-                <span>Surface : {formatSurface(room.surface_sqm)}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Users className="size-4 text-muted-foreground" />
-                <span>Capacité : {formatCapacity(room.capacity)}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Building2 className="size-4 text-muted-foreground" />
-                <span>Tarif : {formatPrice(room.pricing_type, room.base_price)}</span>
-              </div>
-            </CardContent>
-          </Card>
+        {(room.equipment?.length ?? 0) > 0 && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Équipements : </span>
+            {room.equipment?.join(" · ")}
+          </p>
+        )}
+      </header>
 
+      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+        <div className="order-2 space-y-5 lg:order-1 lg:col-span-7">
           <RoomAvailabilityCalendar slots={availability} rules={rules} />
 
           {extendedDetails ? (
@@ -112,16 +116,15 @@ export default async function RoomPage({ params }: RoomPageProps) {
           )}
         </div>
 
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Demande de réservation</CardTitle>
-            <CardDescription>
-              Remplissez le formulaire ci-dessous. Le service {room.services?.name}{" "}
-              traitera votre demande.
+        <Card className="order-1 lg:sticky lg:top-20 lg:col-span-5 lg:order-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Demande de réservation</CardTitle>
+            <CardDescription className="text-xs">
+              Transmise au service {room.services?.name} pour validation.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <RequestForm room={room} />
+            <RequestForm room={room} compact />
           </CardContent>
         </Card>
       </div>
