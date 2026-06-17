@@ -125,20 +125,8 @@ const onyxDetails: RoomExtendedDetails = {
     "Salle polyvalente modulable de 500 m², équipée d'un mur LED et d'une régie lumière/son. Configurations conférence, banquet ou cocktail jusqu'à 500 personnes.",
   images: [
     {
-      src: "/rooms/diamant/01-scene.png",
-      alt: "Scène avec éclairage professionnel",
-    },
-    {
-      src: "/rooms/diamant/02-conference.png",
-      alt: "Configuration conférence avec mur LED",
-    },
-    {
-      src: "/rooms/diamant/03-evenement.png",
-      alt: "Événement debout avec régie son",
-    },
-    {
-      src: "/rooms/diamant/04-banquet.png",
-      alt: "Configuration banquet avec tables rondes",
+      src: "/rooms/onyx/01-conference.png",
+      alt: "Configuration conférence en rangées avec scène",
     },
   ],
   features: [...polyvalenteOuestFeatures],
