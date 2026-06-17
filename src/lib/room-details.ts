@@ -103,6 +103,97 @@ const diamantDetails: RoomExtendedDetails = {
   ],
 };
 
+const polyvalenteOuestFeatures = [
+  { label: "Événements acceptés", value: "Privés et professionnels" },
+  { label: "Scène", value: "Non" },
+  { label: "Piste de danse", value: "Non" },
+  { label: "Lumière naturelle", value: "Non" },
+  { label: "Climatisation", value: "Oui" },
+  { label: "Chauffage", value: "Oui" },
+  { label: "Accès handicapé (PMR)", value: "Oui" },
+  { label: "Manifestations dansantes", value: "Oui" },
+  { label: "Disponibilité de l'espace", value: "Tous les jours" },
+] as const;
+
+const polyvalenteOuestPayment = [
+  { label: "Caution", value: "Pas de caution demandée" },
+  { label: "Acompte", value: "30 % du montant total" },
+];
+
+const onyxDetails: RoomExtendedDetails = {
+  summary:
+    "Salle polyvalente modulable de 500 m², équipée d'un mur LED et d'une régie lumière/son. Configurations conférence, banquet ou cocktail jusqu'à 500 personnes.",
+  images: [
+    {
+      src: "/rooms/diamant/01-scene.png",
+      alt: "Scène avec éclairage professionnel",
+    },
+    {
+      src: "/rooms/diamant/02-conference.png",
+      alt: "Configuration conférence avec mur LED",
+    },
+    {
+      src: "/rooms/diamant/03-evenement.png",
+      alt: "Événement debout avec régie son",
+    },
+    {
+      src: "/rooms/diamant/04-banquet.png",
+      alt: "Configuration banquet avec tables rondes",
+    },
+  ],
+  features: [...polyvalenteOuestFeatures],
+  layoutCapacities: {
+    u: 150,
+    meeting: 500,
+    conference: 500,
+    classroom: 300,
+    banquet: 330,
+    cocktail: 500,
+  },
+  pricing: [
+    { label: "Tarif de l'espace", value: "Dès 3 500 €" },
+    { label: "Heure supplémentaire", value: "850 €" },
+    ...polyvalenteOuestPayment,
+  ],
+};
+
+const diamantOnyxDetails: RoomExtendedDetails = {
+  summary:
+    "Ensemble modulable Diamant & Onyx de 1 000 m², mur LED et régie professionnelle. Grande capacité pour conférences, banquets et cocktails jusqu'à 1 000 personnes.",
+  images: [
+    {
+      src: "/rooms/diamant-onyx/01-gala.png",
+      alt: "Gala avec tables rondes et écran de présentation",
+    },
+    {
+      src: "/rooms/diamant-onyx/02-scene.png",
+      alt: "Scène avec mur LED et éclairage professionnel",
+    },
+    {
+      src: "/rooms/diamant-onyx/03-banquet.png",
+      alt: "Configuration banquet avec tables rondes",
+    },
+    {
+      src: "/rooms/diamant-onyx/04-conference.png",
+      alt: "Configuration conférence en rangées",
+    },
+  ],
+  features: [...polyvalenteOuestFeatures],
+  layoutCapacities: {
+    u: null,
+    meeting: 1000,
+    conference: 1000,
+    classroom: 600,
+    banquet: 650,
+    cocktail: 1000,
+  },
+  pricing: [
+    { label: "Tarif de l'espace", value: "Dès 7 000 €" },
+    { label: "Heure supplémentaire", value: "850 €" },
+    ...polyvalenteOuestPayment,
+  ],
+};
+
 const sardoineDetails: RoomExtendedDetails = {
   summary:
     "Salle polyvalente lumineuse de 200 m² avec lumière naturelle, configuration théâtre ou réunion jusqu'à 200 personnes. Idéale pour séminaires, formations et présentations.",
@@ -592,6 +683,8 @@ const emissionTvDetails: RoomExtendedDetails = {
 const ROOM_DETAILS: Record<string, RoomExtendedDetails> = {
   auditorium: auditoriumDetails,
   diamant: diamantDetails,
+  onyx: onyxDetails,
+  "diamant-onyx": diamantOnyxDetails,
   sardoine: sardoineDetails,
   saphir: saphirDetails,
   topaze: topazeDetails,
