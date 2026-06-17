@@ -1,9 +1,16 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile, getPendingRequestsForReview } from "@/lib/data";
+import {
+  getAllRoomsAdmin,
+  getCurrentProfile,
+  getPendingRequestsForReview,
+  getServices,
+} from "@/lib/data";
 import { formatDateRange } from "@/lib/format";
 import { ReviewActions } from "@/components/requests/review-actions";
 import { StatusBadge } from "@/components/requests/status-badge";
+import { ValidationFilters } from "@/components/validation/validation-filters";
 import {
   Card,
   CardContent,
@@ -12,11 +19,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default async function ValidationPage() {
+type PageProps = {
+  searchParams: Promise<{
+    roomId?: string;
+    serviceId?: string;
+    from?: string;
+    to?: string;
+    sort?: "oldest" | "newest";
+  }>;
+};
+
+export default async function ValidationPage({ searchParams }: PageProps) {
   const supabase = await createClient();
-  const user = supabase
-    ? (await supabase.auth.getUser()).data.user
-    : null;
+  const user = supabase ? (await supabase.auth.getUser()).data.user : null;
 
   if (!user) {
     redirect("/connexion?redirect=/validation");
@@ -36,7 +51,18 @@ export default async function ValidationPage() {
     );
   }
 
-  const requests = await getPendingRequestsForReview();
+  const filters = await searchParams;
+  const [requests, rooms, services] = await Promise.all([
+    getPendingRequestsForReview({
+      roomId: filters.roomId,
+      serviceId: filters.serviceId,
+      from: filters.from ? `${filters.from}T00:00:00` : undefined,
+      to: filters.to ? `${filters.to}T23:59:59` : undefined,
+      sort: filters.sort ?? "oldest",
+    }),
+    getAllRoomsAdmin(),
+    getServices(),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -49,6 +75,10 @@ export default async function ValidationPage() {
           de traitement.
         </p>
       </div>
+
+      <Suspense fallback={null}>
+        <ValidationFilters rooms={rooms} services={services} />
+      </Suspense>
 
       {requests.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">

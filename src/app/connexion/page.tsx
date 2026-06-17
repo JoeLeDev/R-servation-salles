@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
+import { getEmailDomainSettings } from "@/lib/data";
 import { isTestLoginEnabled } from "@/lib/test-login";
 import {
   Card,
@@ -22,6 +23,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
   const params = await searchParams;
   const redirectTo = params.redirect?.startsWith("/") ? params.redirect : "/salles";
   const authError = params.error ? ERROR_MESSAGES[params.error] : null;
+  const emailDomains = await getEmailDomainSettings();
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md items-center px-4 py-12 sm:px-6">
@@ -39,7 +41,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
               {authError}
             </p>
           )}
-          <LoginForm redirectTo={redirectTo} />
+          <LoginForm redirectTo={redirectTo} allowedDomains={emailDomains.domains} />
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {isTestLoginEnabled() && (
               <>

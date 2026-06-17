@@ -4,11 +4,17 @@ import {
   getCurrentProfile,
   getRequestAttachments,
   getRequestById,
+  getRequestChangeLog,
   getRequestComments,
 } from "@/lib/data";
 import { formatDateRange } from "@/lib/format";
 import { RequestAttachments } from "@/components/requests/request-attachments";
+import { RequestChangeHistory } from "@/components/requests/request-change-history";
 import { RequestComments } from "@/components/requests/request-comments";
+import {
+  RequestCancelForm,
+  RequestEditForm,
+} from "@/components/requests/request-edit-form";
 import { StatusBadge } from "@/components/requests/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,13 +33,14 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const isStaff = ["service_manager", "admin"].includes(profile.role);
   if (!isOwner && !isStaff) notFound();
 
-  const [comments, attachments] = await Promise.all([
+  const [comments, attachments, changeLog] = await Promise.all([
     getRequestComments(id),
     getRequestAttachments(id),
+    getRequestChangeLog(id),
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-2xl space-y-6 px-4 py-10 sm:px-6">
       <Button variant="ghost" asChild className="mb-4">
         <Link href="/mes-demandes">← Mes demandes</Link>
       </Button>
@@ -57,6 +64,11 @@ export default async function RequestDetailPage({ params }: PageProps) {
               <strong>Réponse :</strong> {request.review_comment}
             </p>
           )}
+          {request.cancellation_reason && (
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm">
+              <strong>Motif d&apos;annulation :</strong> {request.cancellation_reason}
+            </p>
+          )}
           {request.required_approval_steps > 1 && (
             <p className="text-sm text-muted-foreground">
               Validation étape {request.approval_step}/{request.required_approval_steps}
@@ -69,6 +81,18 @@ export default async function RequestDetailPage({ params }: PageProps) {
           )}
         </CardContent>
       </Card>
+
+      {isOwner && request.status === "pending" && (
+        <>
+          <RequestEditForm request={request} />
+          <RequestCancelForm requestId={id} />
+        </>
+      )}
+
+      <section>
+        <h2 className="mb-3 font-semibold">Historique</h2>
+        <RequestChangeHistory logs={changeLog} />
+      </section>
     </div>
   );
 }

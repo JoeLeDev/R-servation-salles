@@ -9,8 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { isEmailDomainAllowed, emailDomainError } from "@/lib/email-domain";
+
 type PasswordLoginFormProps = {
   redirectTo?: string;
+  allowedDomains?: string[];
 };
 
 function mapPasswordError(message: string): string {
@@ -35,7 +38,10 @@ function mapPasswordError(message: string): string {
   return message;
 }
 
-export function PasswordLoginForm({ redirectTo = "/salles" }: PasswordLoginFormProps) {
+export function PasswordLoginForm({
+  redirectTo = "/salles",
+  allowedDomains = [],
+}: PasswordLoginFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -59,6 +65,12 @@ export function PasswordLoginForm({ redirectTo = "/salles" }: PasswordLoginFormP
     setError(null);
     setMessage(null);
 
+    if (!isEmailDomainAllowed(email, { domains: allowedDomains })) {
+      setError(emailDomainError({ domains: allowedDomains }));
+      setLoading(false);
+      return;
+    }
+
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -80,6 +92,12 @@ export function PasswordLoginForm({ redirectTo = "/salles" }: PasswordLoginFormP
     setLoading(true);
     setError(null);
     setMessage(null);
+
+    if (!isEmailDomainAllowed(email, { domains: allowedDomains })) {
+      setError(emailDomainError({ domains: allowedDomains }));
+      setLoading(false);
+      return;
+    }
 
     const { error: signUpError } = await supabase.auth.signUp({
       email,

@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
 
 const steps = [
   {
@@ -27,7 +28,10 @@ const steps = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient();
+  const user = supabase ? (await supabase.auth.getUser()).data.user : null;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:py-20">
       <section className="mx-auto max-w-3xl text-center">
@@ -54,9 +58,11 @@ export default function HomePage() {
               Calendrier
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link href="/connexion">Se connecter</Link>
-          </Button>
+          {!user && (
+            <Button asChild variant="outline" size="lg">
+              <Link href="/connexion">Se connecter</Link>
+            </Button>
+          )}
         </div>
       </section>
 

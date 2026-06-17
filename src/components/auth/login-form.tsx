@@ -9,8 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
+import { isEmailDomainAllowed, emailDomainError } from "@/lib/email-domain";
+
 type LoginFormProps = {
   redirectTo?: string;
+  allowedDomains?: string[];
 };
 
 function mapAuthError(message: string): string {
@@ -41,7 +44,7 @@ function mapAuthError(message: string): string {
   return message;
 }
 
-export function LoginForm({ redirectTo = "/salles" }: LoginFormProps) {
+export function LoginForm({ redirectTo = "/salles", allowedDomains = [] }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -67,6 +70,12 @@ export function LoginForm({ redirectTo = "/salles" }: LoginFormProps) {
     setMessage(null);
 
     const redirectUrl = getAuthCallbackUrl(redirectTo);
+
+    if (!isEmailDomainAllowed(email, { domains: allowedDomains })) {
+      setError(emailDomainError({ domains: allowedDomains }));
+      setLoading(false);
+      return;
+    }
 
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email,

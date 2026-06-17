@@ -22,8 +22,15 @@ npm install
 
 1. Créez un projet sur [supabase.com](https://supabase.com)
 2. Copiez `.env.local.example` vers `.env.local` et renseignez vos clés
-3. Dans le **SQL Editor** de Supabase, exécutez le fichier :
-   `supabase/migrations/20250608120000_initial_schema.sql`
+3. Dans le **SQL Editor** de Supabase, exécutez **toutes** les migrations dans l'ordre :
+
+   1. `supabase/migrations/20250608120000_initial_schema.sql`
+   2. `supabase/migrations/20250608130000_public_read_rooms.sql`
+   3. `supabase/migrations/20250608140000_fix_rls_recursion.sql`
+   4. `supabase/migrations/20250608150000_fix_profiles_insert.sql`
+   5. `supabase/migrations/20250609120000_features.sql` *(conflits, validation 2 étapes, commentaires, pièces jointes)*
+   6. `supabase/migrations/20250610120000_extended_features.sql` *(historique, blocages, domaines email, comptes actifs)*
+   7. `supabase/migrations/20250610130000_auditorium_details.sql` *(fiche Auditorium)*
 
 ### 3. Configurer l'authentification
 
@@ -36,7 +43,7 @@ Dans **Authentication → URL Configuration** :
 
 | Champ | Valeur |
 |-------|--------|
-| Site URL | `https://votre-app.vercel.app` |
+| Site URL | `https://r-servation-salles.vercel.app` |
 | Redirect URLs | `http://localhost:3000/auth/callback` |
 | | `http://localhost:3001/auth/callback` |
 | | `https://votre-app.vercel.app/auth/callback` |
@@ -52,6 +59,7 @@ Dans **Vercel → Project → Settings → Environment Variables**, ajoutez pour
 NEXT_PUBLIC_SUPABASE_URL=https://jrednmiwomkyabbhkzat.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 NEXT_PUBLIC_SITE_URL=https://votre-app.vercel.app
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 Puis **redéployez** (Deployments → Redeploy).
@@ -72,9 +80,17 @@ Ouvrez [http://localhost:3000](http://localhost:3000).
 |------|--------|
 | `employee` | Faire des demandes, voir ses demandes |
 | `service_manager` | Valider les demandes de son service |
-| `admin` | Valider toutes les demandes |
+| `admin` | Valider toutes les demandes, gérer utilisateurs et salles (`/admin`) |
 
-Pour promouvoir un utilisateur en responsable de service :
+L'administrateur accède à **`/admin/utilisateurs`** pour :
+
+- voir tous les comptes ;
+- modifier les rôles et services ;
+- créer des utilisateurs (email + mot de passe).
+
+Pour la création d'utilisateurs, ajoutez `SUPABASE_SERVICE_ROLE_KEY` dans `.env.local` (jamais en `NEXT_PUBLIC_`).
+
+Pour promouvoir un utilisateur manuellement (SQL) :
 
 ```sql
 update public.profiles

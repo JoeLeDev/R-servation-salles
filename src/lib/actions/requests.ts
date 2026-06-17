@@ -9,12 +9,15 @@ import {
   DEFAULT_BOOKING_RULES,
 } from "@/lib/booking-rules";
 import {
+  checkBlackoutConflict,
   checkBookingConflict,
   getBookingRules,
   getCurrentProfile,
+  getRequestById,
   getRoomById,
 } from "@/lib/data";
-import type { BookingRules, RequestStatus, UserRole } from "@/types/database";
+import { logRequestChange } from "@/lib/request-change-log";
+import type { BookingRules, RequestStatus } from "@/types/database";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -107,6 +110,16 @@ export async function createReservationRequest(
         error: `Conflit détecté le ${slot.start.toLocaleDateString("fr-FR")} : la salle ou une salle liée est déjà réservée.`,
       };
     }
+    const blackout = await checkBlackoutConflict(
+      roomId,
+      slot.start.toISOString(),
+      slot.end.toISOString()
+    );
+    if (blackout) {
+      return {
+        error: `Créneau indisponible le ${slot.start.toLocaleDateString("fr-FR")} : période bloquée (maintenance ou fermeture).`,
+      };
+    }
   }
 
   const inserts = slots.map((slot, index) => ({
@@ -127,11 +140,52 @@ export async function createReservationRequest(
     parent_request_id: index > 0 ? null : null,
   }));
 
-  const { error } = await supabase.from("reservation_requests").insert(inserts);
+  let { data: inserted, error } = await supabase
+    .from("reservation_requests")
+    .insert(inserts)
+    .select("id");
+
+  if (
+    error &&
+    (error.message.includes("approval_step") ||
+      error.message.includes("recurrence_rule") ||
+      error.message.includes("schema cache"))
+  ) {
+    console.warn(
+      "createReservationRequest: migration features manquante, insertion sans colonnes étendues."
+    );
+    const basicInserts = inserts.map(
+      ({
+        approval_step: _a,
+        required_approval_steps: _r,
+        recurrence_rule: _rr,
+        parent_request_id: _p,
+        ...rest
+      }) => rest
+    );
+    ({ data: inserted, error } = await supabase
+      .from("reservation_requests")
+      .insert(basicInserts)
+      .select("id"));
+  }
 
   if (error) {
     console.error("createReservationRequest:", error.message);
+    if (error.message.includes("schema cache")) {
+      return {
+        error:
+          "La base Supabase n'est pas à jour. Exécutez la migration supabase/migrations/20250609120000_features.sql dans le SQL Editor.",
+      };
+    }
     return { error: "Impossible d'envoyer la demande. Réessayez plus tard." };
+  }
+
+  for (const row of inserted ?? []) {
+    await logRequestChange(supabase, {
+      requestId: row.id,
+      actorId: user.id,
+      action: "created",
+    });
   }
 
   revalidatePath("/mes-demandes");
@@ -226,8 +280,9 @@ export async function reviewReservationRequest(
   return { success: true };
 }
 
-export async function cancelReservationRequest(
-  requestId: string
+export async function updateReservationRequest(
+  _prev: RequestFormState,
+  formData: FormData
 ): Promise<RequestFormState> {
   const supabase = await createClient();
   if (!supabase) return { error: "Supabase n'est pas configuré." };
@@ -237,16 +292,138 @@ export async function cancelReservationRequest(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Non autorisé." };
 
+  const requestId = formData.get("request_id") as string;
+  const title = (formData.get("title") as string)?.trim();
+  const startAt = formData.get("start_at") as string;
+  const endAt = formData.get("end_at") as string;
+
+  if (!requestId || !title || !startAt || !endAt) {
+    return { error: "Champs obligatoires manquants." };
+  }
+
+  const existing = await getRequestById(requestId);
+  if (!existing || existing.requester_id !== user.id || existing.status !== "pending") {
+    return { error: "Demande non modifiable." };
+  }
+
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return { error: "Dates invalides." };
+  }
+
+  const rules = await getBookingRules();
+  const rulesError = validateBookingDates(start, end, rules);
+  if (rulesError) return { error: rulesError };
+
+  const conflict = await checkBookingConflict(
+    existing.room_id,
+    start.toISOString(),
+    end.toISOString(),
+    requestId
+  );
+  if (conflict) return { error: "Conflit avec une autre réservation." };
+
+  const blackout = await checkBlackoutConflict(
+    existing.room_id,
+    start.toISOString(),
+    end.toISOString()
+  );
+  if (blackout) return { error: "Créneau bloqué (maintenance ou fermeture)." };
+
+  const changes: Record<string, { old: unknown; new: unknown }> = {};
+  if (existing.title !== title) {
+    changes.title = { old: existing.title, new: title };
+  }
+  if (existing.start_at !== start.toISOString()) {
+    changes.start_at = { old: existing.start_at, new: start.toISOString() };
+  }
+  if (existing.end_at !== end.toISOString()) {
+    changes.end_at = { old: existing.end_at, new: end.toISOString() };
+  }
+
+  if (Object.keys(changes).length === 0) {
+    return { error: "Aucune modification détectée." };
+  }
+
   const { error } = await supabase
     .from("reservation_requests")
-    .update({ status: "cancelled" })
+    .update({
+      title,
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
+    })
     .eq("id", requestId)
     .eq("requester_id", user.id)
     .eq("status", "pending");
 
-  if (error) return { error: "Impossible d'annuler la demande." };
+  if (error) return { error: "Mise à jour impossible." };
+
+  await logRequestChange(supabase, {
+    requestId,
+    actorId: user.id,
+    action: "updated",
+    changes,
+  });
+
+  revalidatePath(`/mes-demandes/${requestId}`);
+  revalidatePath("/mes-demandes");
+  revalidatePath("/validation");
+  revalidatePath("/calendrier");
+  return { success: true };
+}
+
+export async function cancelReservationRequest(
+  _prev: RequestFormState,
+  formData: FormData
+): Promise<RequestFormState> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase n'est pas configuré." };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Non autorisé." };
+
+  const requestId = formData.get("request_id") as string;
+  const reason = (formData.get("reason") as string)?.trim();
+
+  if (!requestId) return { error: "Demande introuvable." };
+  if (!reason) return { error: "Le motif d'annulation est obligatoire." };
+
+  const { error } = await supabase
+    .from("reservation_requests")
+    .update({
+      status: "cancelled",
+      cancellation_reason: reason,
+    })
+    .eq("id", requestId)
+    .eq("requester_id", user.id)
+    .eq("status", "pending");
+
+  if (error) {
+    if (error.message.includes("cancellation_reason")) {
+      const { error: fallbackError } = await supabase
+        .from("reservation_requests")
+        .update({ status: "cancelled" })
+        .eq("id", requestId)
+        .eq("requester_id", user.id)
+        .eq("status", "pending");
+      if (fallbackError) return { error: "Impossible d'annuler la demande." };
+    } else {
+      return { error: "Impossible d'annuler la demande." };
+    }
+  }
+
+  await logRequestChange(supabase, {
+    requestId,
+    actorId: user.id,
+    action: "cancelled",
+    reason,
+  });
 
   revalidatePath("/mes-demandes");
+  revalidatePath(`/mes-demandes/${requestId}`);
   revalidatePath("/calendrier");
   return { success: true };
 }
@@ -318,28 +495,6 @@ export async function uploadRequestAttachment(
   return { success: true };
 }
 
-export async function updateUserRole(
-  userId: string,
-  role: UserRole,
-  serviceId: string | null
-): Promise<RequestFormState> {
-  const supabase = await createClient();
-  if (!supabase) return { error: "Non configuré." };
-
-  const profile = await getCurrentProfile();
-  if (profile?.role !== "admin") return { error: "Réservé aux administrateurs." };
-
-  const { error } = await supabase
-    .from("profiles")
-    .update({ role, service_id: serviceId })
-    .eq("id", userId);
-
-  if (error) return { error: "Mise à jour impossible." };
-
-  revalidatePath("/admin");
-  return { success: true };
-}
-
 export async function updateRoomActive(
   roomId: string,
   isActive: boolean
@@ -357,7 +512,7 @@ export async function updateRoomActive(
 
   if (error) return { error: "Mise à jour impossible." };
 
-  revalidatePath("/admin");
+  revalidatePath("/admin/salles");
   revalidatePath("/salles");
   return { success: true };
 }
@@ -378,6 +533,6 @@ export async function updateBookingRules(
 
   if (error) return { error: "Sauvegarde impossible." };
 
-  revalidatePath("/admin");
+  revalidatePath("/admin/regles");
   return { success: true };
 }

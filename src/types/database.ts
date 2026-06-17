@@ -45,6 +45,62 @@ export type Profile = {
   email: string;
   role: UserRole;
   service_id: string | null;
+  is_active?: boolean;
+};
+
+export type RequestChangeLog = {
+  id: string;
+  request_id: string;
+  actor_id: string;
+  action: "created" | "updated" | "cancelled";
+  changes: Record<string, { old: unknown; new: unknown }>;
+  reason: string | null;
+  created_at: string;
+  profiles?: Pick<Profile, "full_name" | "email">;
+};
+
+export type RoomBlackout = {
+  id: string;
+  room_id: string;
+  title: string;
+  reason: string | null;
+  start_at: string;
+  end_at: string;
+  recurrence_frequency: "none" | "weekly";
+  recurrence_until: string | null;
+  created_by: string | null;
+  created_at: string;
+  rooms?: Pick<Room, "name" | "slug">;
+};
+
+export type AvailabilitySlot = {
+  start_at: string;
+  end_at: string;
+  type: "booking" | "blackout";
+  title: string;
+  status?: RequestStatus;
+};
+
+export type ReviewFilters = {
+  roomId?: string;
+  serviceId?: string;
+  from?: string;
+  to?: string;
+  sort?: "oldest" | "newest";
+};
+
+export type ExportStats = {
+  month: string;
+  serviceId: string | null;
+  serviceName: string;
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  cancelled: number;
+  approvalRate: number;
+  rejectionRate: number;
+  occupancyByRoom: { roomName: string; hours: number; count: number }[];
 };
 
 export type ReservationRequest = {
@@ -64,6 +120,7 @@ export type ReservationRequest = {
   parent_request_id: string | null;
   approval_step: number;
   required_approval_steps: number;
+  cancellation_reason?: string | null;
   created_at: string;
   rooms?: Room;
   profiles?: Profile;
@@ -95,6 +152,10 @@ export type BookingRules = {
   min_advance_hours: number;
   cancellation_hours: number;
   require_approval: boolean;
+};
+
+export type EmailDomainSettings = {
+  domains: string[];
 };
 
 export type DashboardStats = {

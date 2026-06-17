@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
-import { toast } from "sonner";
 import type { ReservationRequest } from "@/types/database";
 import { formatDateRange } from "@/lib/format";
-import { cancelReservationRequest } from "@/lib/actions/requests";
 import { StatusBadge } from "@/components/requests/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,25 +19,12 @@ type RequestListProps = {
 };
 
 export function RequestList({ requests, showRequester = false }: RequestListProps) {
-  const [pending, startTransition] = useTransition();
-
   if (requests.length === 0) {
     return (
       <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
         Aucune demande pour le moment.
       </div>
     );
-  }
-
-  function handleCancel(id: string) {
-    startTransition(async () => {
-      const result = await cancelReservationRequest(id);
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        toast.success("Demande annulée.");
-      }
-    });
   }
 
   return (
@@ -76,19 +60,9 @@ export function RequestList({ requests, showRequester = false }: RequestListProp
               </p>
             )}
             {!showRequester && request.status === "pending" && (
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/mes-demandes/${request.id}`}>Détails</Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pending}
-                  onClick={() => handleCancel(request.id)}
-                >
-                  Annuler
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/mes-demandes/${request.id}`}>Modifier / annuler</Link>
+              </Button>
             )}
           </CardContent>
         </Card>

@@ -4,17 +4,24 @@ import { DEFAULT_BOOKING_RULES } from "@/lib/booking-rules";
 import { FALLBACK_ROOMS } from "@/lib/rooms-fallback";
 import { relationName } from "@/lib/supabase/relations";
 import type {
+  AvailabilitySlot,
   BookingRules,
   CalendarEvent,
   DashboardStats,
+  EmailDomainSettings,
+  ExportStats,
   Profile,
   RequestAttachment,
+  RequestChangeLog,
   RequestComment,
   ReservationRequest,
+  ReviewFilters,
   Room,
+  RoomBlackout,
   RoomType,
   UserRole,
 } from "@/types/database";
+import { expandBlackoutOccurrences } from "@/lib/blackouts";
 
 export type RoomFilters = {
   type?: RoomType | "all";
@@ -145,6 +152,19 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   return (data as Profile) ?? null;
 }
 
+export async function getEmailDomainSettings(): Promise<EmailDomainSettings> {
+  const supabase = await createClient();
+  if (!supabase) return { domains: [] };
+
+  const { data } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "email_domains")
+    .single();
+
+  return (data?.value as EmailDomainSettings) ?? { domains: [] };
+}
+
 export async function getAllProfiles(): Promise<Profile[]> {
   const supabase = await createClient();
   if (!supabase) return [];
@@ -200,18 +220,22 @@ export async function getRequestById(id: string): Promise<ReservationRequest | n
   return (data as ReservationRequest) ?? null;
 }
 
-export async function getPendingRequestsForReview(): Promise<ReservationRequest[]> {
+export async function getPendingRequestsForReview(
+  filters: ReviewFilters = {}
+): Promise<ReservationRequest[]> {
   const supabase = await createClient();
   if (!supabase) return [];
 
   const profile = await getCurrentProfile();
   if (!profile || !["service_manager", "admin"].includes(profile.role)) return [];
 
+  const ascending = filters.sort !== "newest";
+
   let query = supabase
     .from("reservation_requests")
     .select("*, rooms(*, services(id, name)), profiles!reservation_requests_requester_id_fkey(id, full_name, email)")
     .eq("status", "pending")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending });
 
   if (profile.role === "service_manager") {
     query = query.eq("approval_step", 1);
@@ -226,9 +250,18 @@ export async function getPendingRequestsForReview(): Promise<ReservationRequest[
     }
   }
 
-  if (profile.role === "admin") {
-    // Admin voit étape 1 (toutes) + étape 2 (validation direction)
-    // Pas de filtre supplémentaire
+  if (filters.roomId) query = query.eq("room_id", filters.roomId);
+  if (filters.from) query = query.gte("start_at", filters.from);
+  if (filters.to) query = query.lte("end_at", filters.to);
+
+  if (filters.serviceId) {
+    const { data: serviceRooms } = await supabase
+      .from("rooms")
+      .select("id")
+      .eq("service_id", filters.serviceId);
+    const roomIds = serviceRooms?.map((r) => r.id) ?? [];
+    if (!roomIds.length) return [];
+    query = query.in("room_id", roomIds);
   }
 
   const { data, error } = await query;
@@ -406,12 +439,33 @@ export async function checkBookingConflict(
     p_exclude_request_id: excludeRequestId ?? null,
   });
 
-  if (error) {
-    console.error("checkBookingConflict:", error.message);
+  if (!error) return Boolean(data);
+
+  console.warn(
+    "checkBookingConflict: fonction RPC indisponible, repli sur requête simple.",
+    error.message
+  );
+
+  let query = supabase
+    .from("reservation_requests")
+    .select("id")
+    .eq("room_id", roomId)
+    .in("status", ["pending", "approved"])
+    .lt("start_at", endAt)
+    .gt("end_at", startAt)
+    .limit(1);
+
+  if (excludeRequestId) {
+    query = query.neq("id", excludeRequestId);
+  }
+
+  const { data: conflicts, error: fallbackError } = await query;
+  if (fallbackError) {
+    console.error("checkBookingConflict:", fallbackError.message);
     return false;
   }
 
-  return Boolean(data);
+  return (conflicts?.length ?? 0) > 0;
 }
 
 export async function getBookingRules(): Promise<BookingRules> {
@@ -425,6 +479,197 @@ export async function getBookingRules(): Promise<BookingRules> {
     .single();
 
   return (data?.value as BookingRules) ?? DEFAULT_BOOKING_RULES;
+}
+
+export async function getRoomAvailability(
+  roomId: string,
+  from: string,
+  to: string
+): Promise<AvailabilitySlot[]> {
+  const supabase = await createClient();
+  if (!supabase) return [];
+
+  const rangeFrom = new Date(from);
+  const rangeTo = new Date(to);
+
+  const [bookingsRes, blackoutsRes] = await Promise.all([
+    supabase
+      .from("reservation_requests")
+      .select("title, start_at, end_at, status")
+      .eq("room_id", roomId)
+      .in("status", ["pending", "approved"])
+      .lt("start_at", to)
+      .gt("end_at", from)
+      .order("start_at"),
+    supabase
+      .from("room_blackouts")
+      .select("*")
+      .eq("room_id", roomId),
+  ]);
+
+  const slots: AvailabilitySlot[] = [];
+
+  for (const row of bookingsRes.data ?? []) {
+    const b = row as {
+      title: string;
+      start_at: string;
+      end_at: string;
+      status: ReservationRequest["status"];
+    };
+    slots.push({
+      start_at: b.start_at,
+      end_at: b.end_at,
+      type: "booking",
+      title: b.title,
+      status: b.status,
+    });
+  }
+
+  for (const row of blackoutsRes.data ?? []) {
+    const blackout = row as RoomBlackout;
+    for (const occ of expandBlackoutOccurrences(blackout, rangeFrom, rangeTo)) {
+      slots.push({
+        start_at: occ.start.toISOString(),
+        end_at: occ.end.toISOString(),
+        type: "blackout",
+        title: occ.title,
+      });
+    }
+  }
+
+  return slots.sort(
+    (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+  );
+}
+
+export async function checkBlackoutConflict(
+  roomId: string,
+  startAt: string,
+  endAt: string
+): Promise<boolean> {
+  const slots = await getRoomAvailability(roomId, startAt, endAt);
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+
+  return slots.some((slot) => {
+    if (slot.type !== "blackout") return false;
+    const s = new Date(slot.start_at);
+    const e = new Date(slot.end_at);
+    return s < end && e > start;
+  });
+}
+
+export async function getRequestChangeLog(
+  requestId: string
+): Promise<RequestChangeLog[]> {
+  const supabase = await createClient();
+  if (!supabase) return [];
+
+  const { data } = await supabase
+    .from("request_change_log")
+    .select("*, profiles(full_name, email)")
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? []) as RequestChangeLog[];
+}
+
+export async function getRoomBlackouts(roomId?: string): Promise<RoomBlackout[]> {
+  const supabase = await createClient();
+  if (!supabase) return [];
+
+  let query = supabase
+    .from("room_blackouts")
+    .select("*, rooms(name, slug)")
+    .order("start_at", { ascending: true });
+
+  if (roomId) query = query.eq("room_id", roomId);
+
+  const { data } = await query;
+  return (data ?? []) as RoomBlackout[];
+}
+
+export async function getExportStats(
+  month: string,
+  serviceId?: string | null
+): Promise<ExportStats> {
+  const supabase = await createClient();
+  const empty: ExportStats = {
+    month,
+    serviceId: serviceId ?? null,
+    serviceName: "Tous les services",
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    cancelled: 0,
+    approvalRate: 0,
+    rejectionRate: 0,
+    occupancyByRoom: [],
+  };
+
+  if (!supabase) return empty;
+
+  const [year, mon] = month.split("-").map(Number);
+  const from = new Date(year, mon - 1, 1).toISOString();
+  const to = new Date(year, mon, 0, 23, 59, 59).toISOString();
+
+  let query = supabase
+    .from("reservation_requests")
+    .select("status, start_at, end_at, rooms(name, service_id, services(name))")
+    .gte("start_at", from)
+    .lte("start_at", to);
+
+  const { data } = await query;
+  if (!data) return empty;
+
+  let serviceName = "Tous les services";
+  const roomMap = new Map<string, { roomName: string; hours: number; count: number }>();
+  const counts = { total: 0, pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+
+  for (const row of data) {
+    const r = row as unknown as {
+      status: ReservationRequest["status"];
+      start_at: string;
+      end_at: string;
+      rooms:
+        | { name: string; service_id: string; services: { name: string } | null }
+        | { name: string; service_id: string; services: { name: string } | null }[]
+        | null;
+    };
+    const room = Array.isArray(r.rooms) ? r.rooms[0] : r.rooms;
+    if (!room) continue;
+
+    if (serviceId && room.service_id !== serviceId) continue;
+
+    if (serviceId && room.services?.name) {
+      serviceName = room.services.name;
+    }
+
+    counts.total++;
+    if (r.status === "pending") counts.pending++;
+    else if (r.status === "approved") counts.approved++;
+    else if (r.status === "rejected") counts.rejected++;
+    else if (r.status === "cancelled") counts.cancelled++;
+
+    const hours =
+      (new Date(r.end_at).getTime() - new Date(r.start_at).getTime()) / 3_600_000;
+    const cur = roomMap.get(room.name) ?? { roomName: room.name, hours: 0, count: 0 };
+    cur.hours += hours;
+    cur.count++;
+    roomMap.set(room.name, cur);
+  }
+
+  const decided = counts.approved + counts.rejected;
+  return {
+    month,
+    serviceId: serviceId ?? null,
+    serviceName,
+    ...counts,
+    approvalRate: decided ? Math.round((counts.approved / decided) * 100) : 0,
+    rejectionRate: decided ? Math.round((counts.rejected / decided) * 100) : 0,
+    occupancyByRoom: [...roomMap.values()].sort((a, b) => b.hours - a.hours),
+  };
 }
 
 export async function requireRole(roles: UserRole[]): Promise<Profile | null> {

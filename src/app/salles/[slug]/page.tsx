@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Users, Ruler, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getRoomBySlug } from "@/lib/data";
+import { getRoomBySlug, getBookingRules, getRoomAvailability } from "@/lib/data";
+import { getRoomExtendedDetails } from "@/lib/room-details";
+import { RoomAvailabilityCalendar } from "@/components/rooms/room-availability-calendar";
+import { RoomDetailsPanel } from "@/components/rooms/room-details-panel";
 import {
   formatCapacity,
   formatPrice,
@@ -41,6 +44,17 @@ export default async function RoomPage({ params }: RoomPageProps) {
     redirect(`/connexion?redirect=/salles/${slug}`);
   }
 
+  const rangeFrom = new Date();
+  const rangeTo = new Date();
+  rangeTo.setDate(rangeTo.getDate() + 14);
+
+  const [availability, rules] = await Promise.all([
+    getRoomAvailability(room.id, rangeFrom.toISOString(), rangeTo.toISOString()),
+    getBookingRules(),
+  ]);
+
+  const extendedDetails = getRoomExtendedDetails(slug);
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <Button variant="ghost" asChild className="mb-6 -ml-2">
@@ -60,6 +74,11 @@ export default async function RoomPage({ params }: RoomPageProps) {
             <p className="mt-2 text-muted-foreground">
               Service : {room.services?.name}
             </p>
+            {(extendedDetails?.summary || room.description) && (
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {extendedDetails?.summary ?? room.description}
+              </p>
+            )}
           </div>
 
           <Card>
@@ -82,9 +101,15 @@ export default async function RoomPage({ params }: RoomPageProps) {
             </CardContent>
           </Card>
 
-          <div className="rounded-xl border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-            Le plan interactif de cette salle sera ajouté prochainement.
-          </div>
+          <RoomAvailabilityCalendar slots={availability} rules={rules} />
+
+          {extendedDetails ? (
+            <RoomDetailsPanel details={extendedDetails} />
+          ) : (
+            <div className="rounded-xl border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              Fiche détaillée à venir pour cette salle.
+            </div>
+          )}
         </div>
 
         <Card className="lg:col-span-3">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PasswordLoginForm } from "@/components/auth/password-login-form";
+import { getEmailDomainSettings } from "@/lib/data";
 import { isTestLoginEnabled } from "@/lib/test-login";
 import {
   Card,
@@ -25,6 +26,7 @@ export default async function ConnexionTestPage({
   const redirectTo = params.redirect?.startsWith("/")
     ? params.redirect
     : "/salles";
+  const emailDomains = await getEmailDomainSettings();
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md items-center px-4 py-12 sm:px-6">
@@ -42,7 +44,10 @@ export default async function ConnexionTestPage({
             mot de passe dans Supabase.
           </div>
 
-          <PasswordLoginForm redirectTo={redirectTo} />
+          <PasswordLoginForm
+            redirectTo={redirectTo}
+            allowedDomains={emailDomains.domains}
+          />
 
           <div className="space-y-2 border-t pt-4 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">Configuration Supabase</p>
