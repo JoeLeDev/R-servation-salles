@@ -48,11 +48,7 @@ export function RequestForm({
   }, [state, router]);
 
   return (
-    <form
-      action={formAction}
-      encType="multipart/form-data"
-      className={compact ? "space-y-3" : "space-y-4"}
-    >
+    <form action={formAction} className={compact ? "space-y-3" : "space-y-4"}>
       <input type="hidden" name="room_id" value={room.id} />
 
       <div className="grid gap-3 sm:grid-cols-2">

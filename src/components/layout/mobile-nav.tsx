@@ -13,6 +13,8 @@ import {
   Settings,
   ShieldCheck,
 } from "lucide-react";
+import { filterNavItems, navItems } from "@/lib/nav-items";
+import type { UserRole } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,11 +23,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-
-export type MobileNavItem = {
-  href: string;
-  label: string;
-};
 
 const iconByHref: Record<string, typeof LayoutGrid> = {
   "/salles": LayoutGrid,
@@ -39,11 +36,13 @@ const iconByHref: Record<string, typeof LayoutGrid> = {
 };
 
 type MobileNavProps = {
-  items: MobileNavItem[];
+  isLoggedIn: boolean;
+  role: UserRole | null;
 };
 
-export function MobileNav({ items }: MobileNavProps) {
+export function MobileNav({ isLoggedIn, role }: MobileNavProps) {
   const [open, setOpen] = useState(false);
+  const visibleNavItems = filterNavItems(navItems, { isLoggedIn, role });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -60,7 +59,7 @@ export function MobileNav({ items }: MobileNavProps) {
           <DialogTitle>Menu</DialogTitle>
         </DialogHeader>
         <nav className="flex flex-col gap-1 p-2">
-          {items.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = iconByHref[item.href] ?? LayoutGrid;
             return (
               <Button

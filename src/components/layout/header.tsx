@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
-  Building2,
   Calendar,
   ClipboardList,
   LayoutGrid,
@@ -11,40 +10,33 @@ import {
   ShieldCheck,
   LayoutDashboard,
 } from "lucide-react";
-import icon from "@/app/icon.png"
+import icon from "@/app/icon.png";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data";
-import type { UserRole } from "@/types/database";
+import { filterNavItems, navItems } from "@/lib/nav-items";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
 import { MobileNav } from "@/components/layout/mobile-nav";
 
-const navItems: Array<{
-  href: string;
-  label: string;
-  icon: typeof LayoutGrid;
-  auth?: boolean;
-  roles?: readonly UserRole[];
-}> = [
-  { href: "/salles", label: "Salles", icon: LayoutGrid },
-  { href: "/calendrier", label: "Calendrier", icon: Calendar },
-  { href: "/plan", label: "Plan", icon: Map },
-  { href: "/tableau-de-bord", label: "Tableau de bord", icon: LayoutDashboard, auth: true },
-  { href: "/mes-demandes", label: "Mes demandes", icon: ClipboardList, auth: true },
-  { href: "/validation", label: "Validation", icon: ShieldCheck, roles: ["service_manager", "admin"] },
-  { href: "/admin", label: "Admin", icon: Settings, roles: ["admin"] },
-];
+const navIcons = {
+  "/salles": LayoutGrid,
+  "/calendrier": Calendar,
+  "/plan": Map,
+  "/tableau-de-bord": LayoutDashboard,
+  "/mes-demandes": ClipboardList,
+  "/validation": ShieldCheck,
+  "/admin": Settings,
+} as const;
 
 export async function Header() {
   const supabase = await createClient();
   const user = supabase ? (await supabase.auth.getUser()).data.user : null;
   const profile = user ? await getCurrentProfile() : null;
 
-  const visibleNavItems = navItems.filter((item) => {
-    if (item.auth && !user) return false;
-    if (item.roles && (!profile || !item.roles.includes(profile.role))) return false;
-    return true;
+  const visibleNavItems = filterNavItems(navItems, {
+    isLoggedIn: Boolean(user),
+    role: profile?.role ?? null,
   });
 
   return (
@@ -57,7 +49,7 @@ export async function Header() {
 
         <nav className="hidden items-center gap-0.5 lg:flex">
           {visibleNavItems.map((item) => {
-            const Icon = item.icon;
+            const Icon = navIcons[item.href as keyof typeof navIcons] ?? LayoutGrid;
             return (
               <Button key={item.href} variant="ghost" size="sm" asChild>
                 <Link href={item.href} className="gap-1.5">
@@ -71,7 +63,8 @@ export async function Header() {
 
         <div className="flex items-center gap-1">
           <MobileNav
-            items={visibleNavItems.map(({ href, label }) => ({ href, label }))}
+            isLoggedIn={Boolean(user)}
+            role={profile?.role ?? null}
           />
           <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
             <Link href="/recherche" aria-label="Rechercher">
