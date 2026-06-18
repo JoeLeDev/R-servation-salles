@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Building2,
   Calendar,
@@ -10,12 +11,14 @@ import {
   ShieldCheck,
   LayoutDashboard,
 } from "lucide-react";
+import icon from "@/app/icon.png"
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data";
 import type { UserRole } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 const navItems: Array<{
   href: string;
@@ -38,20 +41,22 @@ export async function Header() {
   const user = supabase ? (await supabase.auth.getUser()).data.user : null;
   const profile = user ? await getCurrentProfile() : null;
 
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.auth && !user) return false;
+    if (item.roles && (!profile || !item.roles.includes(profile.role))) return false;
+    return true;
+  });
+
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight">
-          <Building2 className="size-5 text-primary" />
+          <Image src={icon} alt="Réservation Cité" width={32} height={32} />
           <span className="hidden sm:inline">Réservation Cité</span>
         </Link>
 
         <nav className="hidden items-center gap-0.5 lg:flex">
-          {navItems.map((item) => {
-            if (item.auth && !user) return null;
-            if (item.roles && (!profile || !item.roles.includes(profile.role))) {
-              return null;
-            }
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <Button key={item.href} variant="ghost" size="sm" asChild>
@@ -65,6 +70,9 @@ export async function Header() {
         </nav>
 
         <div className="flex items-center gap-1">
+          <MobileNav
+            items={visibleNavItems.map(({ href, label }) => ({ href, label }))}
+          />
           <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
             <Link href="/recherche" aria-label="Rechercher">
               <Search className="size-4" />

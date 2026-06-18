@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   addDays,
   eachDayOfInterval,
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 type CalendarViewProps = {
   events: CalendarEvent[];
   weekStart: Date;
+  bookRoomSlug?: string;
 };
 
 function eventColor(status: CalendarEvent["status"]) {
@@ -23,13 +25,38 @@ function eventColor(status: CalendarEvent["status"]) {
   return "bg-amber-500/90";
 }
 
-export function CalendarView({ events, weekStart }: CalendarViewProps) {
+export function CalendarView({ events, weekStart, bookRoomSlug }: CalendarViewProps) {
+  const router = useRouter();
   const days = useMemo(() => {
     const start = startOfWeek(weekStart, { weekStartsOn: 1 });
     return eachDayOfInterval({ start, end: addDays(start, 6) });
   }, [weekStart]);
 
   const hours = Array.from({ length: 13 }, (_, i) => i + 8);
+
+  function bookSlot(day: Date, hour: number) {
+    if (!bookRoomSlug) return;
+    const start = new Date(day);
+    start.setHours(hour, 0, 0, 0);
+    const end = new Date(start);
+    end.setHours(hour + 2, 0, 0, 0);
+    router.push(
+      `/salles/${bookRoomSlug}?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`
+    );
+  }
+
+  function slotTaken(day: Date, hour: number) {
+    const slotStart = new Date(day);
+    slotStart.setHours(hour, 0, 0, 0);
+    const slotEnd = new Date(day);
+    slotEnd.setHours(hour + 1, 0, 0, 0);
+    return events.some((e) => {
+      if (!isSameDay(parseISO(e.start_at), day)) return false;
+      const eStart = parseISO(e.start_at);
+      const eEnd = parseISO(e.end_at);
+      return eStart < slotEnd && eEnd > slotStart;
+    });
+  }
 
   return (
     <div className="overflow-x-auto rounded-xl border">
@@ -57,7 +84,30 @@ export function CalendarView({ events, weekStart }: CalendarViewProps) {
         {days.map((day) => (
           <div key={day.toISOString()} className="relative border-r">
             {hours.map((h) => (
-              <div key={h} className="h-12 border-b" />
+              <div
+                key={h}
+                className={cn(
+                  "h-12 border-b",
+                  bookRoomSlug &&
+                    !slotTaken(day, h) &&
+                    "cursor-pointer hover:bg-primary/5"
+                )}
+                onClick={() => {
+                  if (bookRoomSlug && !slotTaken(day, h)) bookSlot(day, h);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && bookRoomSlug && !slotTaken(day, h)) {
+                    bookSlot(day, h);
+                  }
+                }}
+                role={bookRoomSlug ? "button" : undefined}
+                tabIndex={bookRoomSlug && !slotTaken(day, h) ? 0 : undefined}
+                title={
+                  bookRoomSlug && !slotTaken(day, h)
+                    ? `Réserver à ${h}h`
+                    : undefined
+                }
+              />
             ))}
             {events
               .filter((e) => isSameDay(parseISO(e.start_at), day))

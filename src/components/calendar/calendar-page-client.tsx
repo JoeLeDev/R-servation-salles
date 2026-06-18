@@ -41,6 +41,8 @@ export function CalendarPageClient({
     router.push(`/calendrier?${params.toString()}`);
   }
 
+  const selectedRoom = roomId ? rooms.find((r) => r.id === roomId) : undefined;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -88,13 +90,26 @@ export function CalendarPageClient({
         </span>
       </div>
 
-      <CalendarView events={events} weekStart={weekStart} />
+      <CalendarView
+        events={events}
+        weekStart={weekStart}
+        bookRoomSlug={selectedRoom?.slug}
+      />
 
-      <p className="text-sm text-muted-foreground">
-        <Link href="/salles" className="underline">
-          Faire une demande de réservation →
-        </Link>
-      </p>
+      {selectedRoom ? (
+        <p className="text-sm text-muted-foreground">
+          Créneau libre : cliquez sur une case horaire pour réserver{" "}
+          <strong>{selectedRoom.name}</strong>.
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Sélectionnez une salle pour réserver depuis le calendrier, ou{" "}
+          <Link href="/salles" className="underline">
+            parcourir le catalogue
+          </Link>
+          .
+        </p>
+      )}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, getEmailDomainSettings } from "@/lib/data";
 import { emailDomainError, isEmailDomainAllowed } from "@/lib/email-domain";
 import type { RequestFormState } from "@/lib/actions/requests";
-import type { EmailDomainSettings, UserRole } from "@/types/database";
+import type { EmailDomainSettings, PricingType, UserRole } from "@/types/database";
 
 async function requireAdmin() {
   const profile = await getCurrentProfile();
@@ -314,6 +314,54 @@ export async function createRoomBlackout(
 
   revalidatePath("/admin/blocages");
   revalidatePath("/salles");
+  return { success: true };
+}
+
+export async function updateRoomDetails(
+  _prev: RequestFormState,
+  formData: FormData
+): Promise<RequestFormState> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { error: auth.error };
+
+  const supabase = await createClient();
+  if (!supabase) return { error: "Non configuré." };
+
+  const roomId = formData.get("room_id") as string;
+  if (!roomId) return { error: "Salle introuvable." };
+
+  const description = (formData.get("description") as string)?.trim() || null;
+  const surfaceRaw = formData.get("surface_sqm") as string;
+  const capacityRaw = formData.get("capacity") as string;
+  const pricingType = formData.get("pricing_type") as PricingType;
+  const basePriceRaw = formData.get("base_price") as string;
+  const equipmentRaw = (formData.get("equipment") as string)?.trim();
+  const floorLabel = (formData.get("floor_label") as string)?.trim() || null;
+  const planZone = (formData.get("plan_zone") as string)?.trim() || null;
+
+  const equipment = equipmentRaw
+    ? equipmentRaw.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const { error } = await supabase
+    .from("rooms")
+    .update({
+      description,
+      surface_sqm: surfaceRaw ? Number(surfaceRaw) : null,
+      capacity: capacityRaw ? Number(capacityRaw) : null,
+      pricing_type: pricingType,
+      base_price: basePriceRaw ? Number(basePriceRaw) : null,
+      equipment,
+      floor_label: floorLabel,
+      plan_zone: planZone,
+    })
+    .eq("id", roomId);
+
+  if (error) return { error: "Mise à jour impossible." };
+
+  revalidatePath("/admin/salles");
+  revalidatePath("/salles");
+  revalidatePath(`/salles`);
   return { success: true };
 }
 

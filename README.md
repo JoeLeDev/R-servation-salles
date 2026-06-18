@@ -30,7 +30,9 @@ npm install
    4. `supabase/migrations/20250608150000_fix_profiles_insert.sql`
    5. `supabase/migrations/20250609120000_features.sql` *(conflits, validation 2 étapes, commentaires, pièces jointes)*
    6. `supabase/migrations/20250610120000_extended_features.sql` *(historique, blocages, domaines email, comptes actifs)*
-   7. `supabase/migrations/20250610130000_auditorium_details.sql` *(fiche Auditorium)*
+   7. Fiches salles *(une migration par salle, dans l'ordre)* :
+      - `20250610130000_auditorium_details.sql` … `20250610190000_emeraude_details.sql`
+      - `20250610200000_escarboucle_details.sql` … `20250610310000_onyx_diamant_onyx_details.sql`
 
 ### 3. Configurer l'authentification
 
@@ -111,10 +113,9 @@ where email = 'responsable@exemple.com';
 
 ## À venir
 
-- Plans interactifs des salles (photos fournies par le client)
-- Règles métier configurables (durées, délais)
-- Intégration GTB (éclairage, chauffage)
 - Notifications email automatiques
+- Intégration GTB (éclairage, chauffage)
+- Affinage du plan interactif (positions exactes)
 
 ## Stack
 
@@ -129,7 +130,7 @@ L'application est installable comme une app native :
 
 - **Manifest** : `/manifest.webmanifest`
 - **Service worker** : cache des pages + page hors ligne (`/~offline`)
-- **Icônes** : générées automatiquement (`RC` sur fond bleu)
+- **Icônes** : logo ICC (`/icon-512.png`)
 
 ### Installer l'app
 

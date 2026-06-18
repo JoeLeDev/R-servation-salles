@@ -18,9 +18,16 @@ const initialState: RequestFormState = {};
 type RequestFormProps = {
   room: Room;
   compact?: boolean;
+  defaultStart?: string;
+  defaultEnd?: string;
 };
 
-export function RequestForm({ room, compact = false }: RequestFormProps) {
+export function RequestForm({
+  room,
+  compact = false,
+  defaultStart,
+  defaultEnd,
+}: RequestFormProps) {
   const router = useRouter();
   const [recurring, setRecurring] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -31,7 +38,9 @@ export function RequestForm({ room, compact = false }: RequestFormProps) {
   useEffect(() => {
     if (state.success) {
       toast.success("Demande envoyée au service concerné.");
-      router.push("/mes-demandes");
+      router.push(
+        state.requestId ? `/mes-demandes/${state.requestId}` : "/mes-demandes"
+      );
     }
     if (state.error) {
       toast.error(state.error);
@@ -39,7 +48,11 @@ export function RequestForm({ room, compact = false }: RequestFormProps) {
   }, [state, router]);
 
   return (
-    <form action={formAction} className={compact ? "space-y-3" : "space-y-4"}>
+    <form
+      action={formAction}
+      encType="multipart/form-data"
+      className={compact ? "space-y-3" : "space-y-4"}
+    >
       <input type="hidden" name="room_id" value={room.id} />
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -55,11 +68,23 @@ export function RequestForm({ room, compact = false }: RequestFormProps) {
 
         <div className="space-y-1.5">
           <Label htmlFor="start_at">Début *</Label>
-          <Input id="start_at" name="start_at" type="datetime-local" required />
+          <Input
+            id="start_at"
+            name="start_at"
+            type="datetime-local"
+            required
+            defaultValue={defaultStart}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="end_at">Fin *</Label>
-          <Input id="end_at" name="end_at" type="datetime-local" required />
+          <Input
+            id="end_at"
+            name="end_at"
+            type="datetime-local"
+            required
+            defaultValue={defaultEnd}
+          />
         </div>
 
         <div className="space-y-1.5">
@@ -83,6 +108,22 @@ export function RequestForm({ room, compact = false }: RequestFormProps) {
           rows={compact ? 2 : 3}
           placeholder="Usage, matériel nécessaire…"
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="attachments">Pièces jointes (optionnel)</Label>
+        <Input
+          id="attachments"
+          name="attachments"
+          type="file"
+          multiple
+          accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.pptx"
+          className="text-sm"
+        />
+        <p className="text-xs text-muted-foreground">
+          Plans de salle, programme, assurances ou brief — max 10 Mo par fichier.
+          Utile au service pour valider votre demande.
+        </p>
       </div>
 
       <label className="flex cursor-pointer items-center gap-2 text-sm">

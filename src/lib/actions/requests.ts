@@ -22,7 +22,42 @@ import type { BookingRules, RequestStatus } from "@/types/database";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type RequestFormState = { error?: string; success?: boolean };
+async function saveAttachmentsFromForm(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  requestId: string,
+  formData: FormData
+) {
+  if (!supabase) return;
+
+  const files = formData.getAll("attachments");
+  for (const file of files) {
+    if (!(file instanceof File) || file.size === 0) continue;
+    if (file.size > 10 * 1024 * 1024) continue;
+
+    const path = `${userId}/${requestId}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from("attachments")
+      .upload(path, file);
+
+    if (uploadError) continue;
+
+    await supabase.from("request_attachments").insert({
+      request_id: requestId,
+      uploaded_by: userId,
+      file_name: file.name,
+      file_path: path,
+      mime_type: file.type,
+      size_bytes: file.size,
+    });
+  }
+}
+
+export type RequestFormState = {
+  error?: string;
+  success?: boolean;
+  requestId?: string;
+};
 
 async function parseRequestForm(formData: FormData) {
   const roomId = formData.get("room_id") as string;
@@ -188,11 +223,17 @@ export async function createReservationRequest(
     });
   }
 
+  const primaryId = inserted?.[0]?.id;
+  if (primaryId) {
+    await saveAttachmentsFromForm(supabase, user.id, primaryId, formData);
+    revalidatePath(`/mes-demandes/${primaryId}`);
+  }
+
   revalidatePath("/mes-demandes");
   revalidatePath("/validation");
   revalidatePath("/calendrier");
   revalidatePath("/tableau-de-bord");
-  return { success: true };
+  return { success: true, requestId: primaryId };
 }
 
 export async function reviewReservationRequest(

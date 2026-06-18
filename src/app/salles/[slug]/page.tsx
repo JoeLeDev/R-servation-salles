@@ -1,34 +1,30 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ArrowLeft, Users, Ruler, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getRoomBySlug, getBookingRules, getRoomAvailability } from "@/lib/data";
 import { getRoomExtendedDetails } from "@/lib/room-details";
+import { parseDatetimeParam, toDatetimeLocalValue } from "@/lib/datetime-local";
 import { RoomAvailabilityCalendar } from "@/components/rooms/room-availability-calendar";
 import { RoomDetailsPanel } from "@/components/rooms/room-details-panel";
+import { RoomReservationPanel } from "@/components/rooms/room-reservation-panel";
 import {
   formatCapacity,
   formatPrice,
   formatRoomType,
   formatSurface,
 } from "@/lib/format";
-import { RequestForm } from "@/components/requests/request-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 type RoomPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ start?: string; end?: string }>;
 };
 
-export default async function RoomPage({ params }: RoomPageProps) {
+export default async function RoomPage({ params, searchParams }: RoomPageProps) {
   const { slug } = await params;
+  const query = await searchParams;
   const room = await getRoomBySlug(slug);
 
   if (!room) {
@@ -39,10 +35,6 @@ export default async function RoomPage({ params }: RoomPageProps) {
   const user = supabase
     ? (await supabase.auth.getUser()).data.user
     : null;
-
-  if (!user) {
-    redirect(`/connexion?redirect=/salles/${slug}`);
-  }
 
   const rangeFrom = new Date();
   const rangeTo = new Date();
@@ -55,8 +47,24 @@ export default async function RoomPage({ params }: RoomPageProps) {
 
   const extendedDetails = getRoomExtendedDetails(slug);
 
+  const parsedStart = parseDatetimeParam(query.start);
+  const parsedEnd = parseDatetimeParam(query.end);
+  const defaultStart = parsedStart
+    ? toDatetimeLocalValue(parsedStart)
+    : undefined;
+  const defaultEnd = parsedEnd ? toDatetimeLocalValue(parsedEnd) : undefined;
+
+  const redirectPath =
+    query.start || query.end
+      ? `/salles/${slug}?${new URLSearchParams({
+          ...(query.start ? { start: query.start } : {}),
+          ...(query.end ? { end: query.end } : {}),
+        }).toString()}`
+      : `/salles/${slug}`;
+  const loginHref = `/connexion?redirect=${encodeURIComponent(redirectPath)}`;
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 py-8 pb-24 sm:px-6 lg:pb-8">
       <Button variant="ghost" asChild className="mb-4 -ml-2">
         <Link href="/salles">
           <ArrowLeft className="mr-2 size-4" />
@@ -105,7 +113,11 @@ export default async function RoomPage({ params }: RoomPageProps) {
 
       <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
         <div className="order-2 space-y-5 lg:order-1 lg:col-span-7">
-          <RoomAvailabilityCalendar slots={availability} rules={rules} />
+          <RoomAvailabilityCalendar
+            slots={availability}
+            rules={rules}
+            roomSlug={slug}
+          />
 
           {extendedDetails ? (
             <RoomDetailsPanel details={extendedDetails} />
@@ -116,17 +128,13 @@ export default async function RoomPage({ params }: RoomPageProps) {
           )}
         </div>
 
-        <Card className="order-1 lg:sticky lg:top-20 lg:col-span-5 lg:order-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Demande de réservation</CardTitle>
-            <CardDescription className="text-xs">
-              Transmise au service {room.services?.name} pour validation.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RequestForm room={room} compact />
-          </CardContent>
-        </Card>
+        <RoomReservationPanel
+          room={room}
+          isLoggedIn={!!user}
+          loginHref={loginHref}
+          defaultStart={defaultStart}
+          defaultEnd={defaultEnd}
+        />
       </div>
     </div>
   );

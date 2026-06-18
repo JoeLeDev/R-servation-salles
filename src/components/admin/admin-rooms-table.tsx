@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import type { Room } from "@/types/database";
 import { updateRoomActive } from "@/lib/actions/requests";
+import { AdminRoomEditDialog } from "@/components/admin/admin-room-edit-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -40,14 +41,17 @@ export function AdminRoomsTable({ rooms }: { rooms: Room[] }) {
                 </Badge>
               </td>
               <td className="p-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => toggle(room)}
-                >
-                  {room.is_active ? "Désactiver" : "Activer"}
-                </Button>
+                <div className="flex justify-end gap-2">
+                  <AdminRoomEditDialog room={room} />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => toggle(room)}
+                  >
+                    {room.is_active ? "Désactiver" : "Activer"}
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}

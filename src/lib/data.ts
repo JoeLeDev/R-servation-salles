@@ -395,6 +395,56 @@ export async function searchAll(query: string): Promise<{
   };
 }
 
+export type RoomSearchFilters = {
+  q?: string;
+  serviceId?: string;
+  minCapacity?: number;
+  date?: string;
+};
+
+export async function searchRoomsFiltered(
+  filters: RoomSearchFilters
+): Promise<Room[]> {
+  const supabase = await createClient();
+  if (!supabase) return [];
+
+  let query = supabase
+    .from("rooms")
+    .select("*, services(id, name)")
+    .eq("is_active", true);
+
+  if (filters.q?.trim()) {
+    query = query.ilike("name", `%${filters.q.trim()}%`);
+  }
+  if (filters.serviceId) {
+    query = query.eq("service_id", filters.serviceId);
+  }
+  if (filters.minCapacity && filters.minCapacity > 0) {
+    query = query.gte("capacity", filters.minCapacity);
+  }
+
+  const { data: rooms } = await query.order("name");
+  let result = (rooms ?? []) as Room[];
+
+  if (filters.date) {
+    const dayStart = new Date(`${filters.date}T00:00:00`);
+    const dayEnd = new Date(`${filters.date}T23:59:59`);
+    if (!Number.isNaN(dayStart.getTime())) {
+      const { data: busy } = await supabase
+        .from("reservation_requests")
+        .select("room_id")
+        .in("status", ["pending", "approved"])
+        .lt("start_at", dayEnd.toISOString())
+        .gt("end_at", dayStart.toISOString());
+
+      const busyIds = new Set((busy ?? []).map((b) => b.room_id));
+      result = result.filter((r) => !busyIds.has(r.id));
+    }
+  }
+
+  return result;
+}
+
 export async function getRequestComments(requestId: string): Promise<RequestComment[]> {
   const supabase = await createClient();
   if (!supabase) return [];

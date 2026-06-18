@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { AvailabilitySlot, BookingRules } from "@/types/database";
@@ -8,6 +9,7 @@ import { cn } from "@/lib/utils";
 type RoomAvailabilityCalendarProps = {
   slots: AvailabilitySlot[];
   rules: BookingRules;
+  roomSlug?: string;
 };
 
 function dayStatus(
@@ -40,6 +42,7 @@ const statusLabels = {
 export function RoomAvailabilityCalendar({
   slots,
   rules,
+  roomSlug,
 }: RoomAvailabilityCalendarProps) {
   const days = Array.from({ length: 14 }, (_, i) => {
     const d = new Date();
@@ -70,11 +73,21 @@ export function RoomAvailabilityCalendar({
             );
           });
           const status = dayStatus(day, daySlots, minBookable);
+          const bookable = roomSlug && status === "free";
+          const start = new Date(day);
+          start.setHours(9, 0, 0, 0);
+          const end = new Date(day);
+          end.setHours(11, 0, 0, 0);
+          const bookHref = bookable
+            ? `/salles/${roomSlug}?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`
+            : undefined;
 
-          return (
+          const cell = (
             <div
-              key={day.toISOString()}
-              className="flex flex-col items-center gap-1 rounded-md border bg-card p-1.5 text-center"
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-md border bg-card p-1.5 text-center transition-colors",
+                bookable && "hover:border-primary hover:bg-primary/5"
+              )}
               title={
                 daySlots.length > 0
                   ? daySlots
@@ -83,7 +96,9 @@ export function RoomAvailabilityCalendar({
                           `${format(new Date(s.start_at), "HH:mm")}–${format(new Date(s.end_at), "HH:mm")}`
                       )
                       .join(", ")
-                  : undefined
+                  : bookable
+                    ? "Réserver ce jour (9h–11h)"
+                    : undefined
               }
             >
               <span className="text-[10px] font-medium capitalize text-muted-foreground">
@@ -99,6 +114,14 @@ export function RoomAvailabilityCalendar({
                 {statusLabels[status]}
               </span>
             </div>
+          );
+
+          return bookHref ? (
+            <Link key={day.toISOString()} href={bookHref}>
+              {cell}
+            </Link>
+          ) : (
+            <div key={day.toISOString()}>{cell}</div>
           );
         })}
       </div>

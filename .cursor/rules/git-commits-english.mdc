@@ -1,0 +1,39 @@
+---
+description: Git commit messages must always be written in English
+alwaysApply: true
+---
+
+# Git Commit Messages — English Only
+
+All git commit messages (subject and body) must be written in **English**, even when communicating with the user in French.
+
+## Format
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+- `feat:` — new feature
+- `fix:` — bug fix
+- `docs:` — documentation only
+- `refactor:` — code change that neither fixes a bug nor adds a feature
+- `test:` — adding or updating tests
+- `chore:` — maintenance, tooling, deps
+
+## Examples
+
+```
+feat: allow public room browsing without login
+
+Enable catalog, floor plan, and room detail pages for visitors.
+Reservation submission still requires authentication.
+```
+
+```
+fix: restore mobile navigation menu on small screens
+
+Add hamburger drawer for nav links hidden below the lg breakpoint.
+```
+
+## Do not
+
+- Write commit subjects or bodies in French
+- Mix languages in the same commit message

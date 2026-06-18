@@ -25,6 +25,10 @@ export default async function DashboardPage() {
     .filter((r) => r.status === "approved" && new Date(r.start_at) > new Date())
     .slice(0, 5);
 
+  const pendingMine = myRequests.filter((r) => r.status === "pending").length;
+  const rejectedMine = myRequests.filter((r) => r.status === "rejected").length;
+  const recentMine = myRequests.slice(0, 5);
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -41,9 +45,9 @@ export default async function DashboardPage() {
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Salles actives" value={stats.totalRooms} />
-        <StatCard title="Demandes en attente" value={stats.pendingRequests} />
-        <StatCard title="Approuvées ce mois" value={stats.approvedThisMonth} />
-        <StatCard title="Mes demandes" value={myRequests.length} />
+        <StatCard title="Mes demandes en attente" value={pendingMine} />
+        <StatCard title="Mes réservations à venir" value={upcoming.length} />
+        <StatCard title="Refusées" value={rejectedMine} />
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
@@ -71,7 +75,34 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {pending.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Activité récente</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentMine.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune demande.</p>
+            ) : (
+              recentMine.map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/mes-demandes/${r.id}`}
+                  className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm hover:bg-muted/50"
+                >
+                  <div>
+                    <div className="font-medium">{r.title}</div>
+                    <div className="text-muted-foreground">
+                      {r.rooms?.name} · {formatDateRange(r.start_at, r.end_at)}
+                    </div>
+                  </div>
+                  <StatusBadge status={r.status} />
+                </Link>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        {profile.role !== "employee" && pending.length > 0 && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">À valider</CardTitle>
@@ -95,7 +126,7 @@ export default async function DashboardPage() {
           </Card>
         )}
 
-        {stats.topRooms.length > 0 && (
+        {stats.topRooms.length > 0 && profile.role !== "employee" && (
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-lg">Salles les plus réservées</CardTitle>
